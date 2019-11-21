@@ -1,3 +1,13 @@
+# 3.2.1
+# Bugs Fixed
+* Fixed two potential NPEs.
+
+# 3.2.0
+### Feature and Improvements
+* Added support for FIT_XY scale type.
+### Bugs Fixed
+* Improved testability while system animations are disabled.
+
 # 3.1.0
 ### Features and Improvements
 * **Breaking Change** Replace JsonReader parsing APIs with InputStream variants to prevent 
