@@ -1,4 +1,22 @@
-# 3.2.1
+# 3.3.1
+### Bugs Fixed
+* Clear alpha values when applying a mask or matte
+
+# 3.3.0
+### Features and Improvements
+* Added a safeMode API that wraps draw with a try/catch. Can be used for problematic devices
+ ([#1449](https://github.com/airbnb/lottie-android/pull/1449)).
+* Add the ability to skip composition caching ([#1450](https://github.com/airbnb/lottie-android/pull/1450)).
+* Add support for mask mode none.
+* Add an API to set the min and max frame from 2 markers.
+* Add support for TEXT_SIZE as a dynamic property for text layers.
+### Bugs Fixed
+* Improve the performance of setProgress, particularly for animations with many non-animated
+ properties.
+ * Fix a bug where animations may not resume on reattach if their state was saved after they were
+  detached.
+
+# 3.2.2
 # Bugs Fixed
 * Fixed two potential NPEs.
 

@@ -63,6 +63,7 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
   private final LottieValueAnimator animator = new LottieValueAnimator();
   private float scale = 1f;
   private boolean systemAnimationsEnabled = true;
+  private boolean safeMode = false;
 
   private final Set<ColorFilterData> colorFilterData = new HashSet<>();
   private final ArrayList<LazyCompositionTask> lazyCompositionTasks = new ArrayList<>();
@@ -300,6 +301,18 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
     invalidateSelf();
   }
 
+  /**
+   * If you are experiencing a device specific crash that happens during drawing, you can set this to true
+   * for those devices. If set to true, draw will be wrapped with a try/catch which will cause Lottie to
+   * render an empty frame rather than crash your app.
+   *
+   * Ideally, you will never need this and the vast majority of apps and animations won't. However, you may use
+   * this for very specific cases if absolutely necessary.
+   */
+  public void setSafeMode(boolean safeMode) {
+    this.safeMode = safeMode;
+  }
+
   @Override
   public void invalidateSelf() {
     if (isDirty) {
@@ -339,13 +352,25 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
 
     L.beginSection("Drawable#draw");
 
+    if (safeMode) {
+      try {
+        drawInternal(canvas);
+      } catch (Throwable e) {
+        Logger.error("Lottie crashed in draw!", e);
+      }
+    } else {
+      drawInternal(canvas);
+    }
+
+    L.endSection("Drawable#draw");
+  }
+
+  private void drawInternal(@NonNull Canvas canvas) {
     if (ImageView.ScaleType.FIT_XY == scaleType) {
       drawWithNewAspectRatio(canvas);
     } else {
       drawWithOriginalAspectRatio(canvas);
     }
-
-    L.endSection("Drawable#draw");
   }
 
 // <editor-fold desc="animator">
@@ -564,6 +589,39 @@ public class LottieDrawable extends Drawable implements Drawable.Callback, Anima
     }
     int startFrame = (int) marker.startFrame;
     setMinAndMaxFrame(startFrame, startFrame + (int) marker.durationFrames);
+  }
+
+  /**
+   * Sets the minimum and maximum frame to the start marker start and the maximum frame to the end marker start.
+   * playEndMarkerStartFrame determines whether or not to play the frame that the end marker is on. If the end marker
+   * represents the end of the section that you want, it should be true. If the marker represents the beginning of the
+   * next section, it should be false.
+   *
+   * @throws IllegalArgumentException if either marker is not found.
+   */
+  public void setMinAndMaxFrame(final String startMarkerName, final String endMarkerName, final boolean playEndMarkerStartFrame) {
+    if (composition == null) {
+      lazyCompositionTasks.add(new LazyCompositionTask() {
+        @Override
+        public void run(LottieComposition composition) {
+          setMinAndMaxFrame(startMarkerName, endMarkerName, playEndMarkerStartFrame);
+        }
+      });
+      return;
+    }
+    Marker startMarker = composition.getMarker(startMarkerName);
+    if (startMarker == null) {
+      throw new IllegalArgumentException("Cannot find marker with name " + startMarkerName + ".");
+    }
+    int startFrame = (int) startMarker.startFrame;
+
+    Marker endMarker = composition.getMarker(endMarkerName);
+    if (endMarkerName == null) {
+      throw new IllegalArgumentException("Cannot find marker with name " + endMarkerName + ".");
+    }
+    int endFrame = (int) (endMarker.startFrame + (playEndMarkerStartFrame ? 1f : 0f));
+
+    setMinAndMaxFrame(startFrame, endFrame);
   }
 
   /**

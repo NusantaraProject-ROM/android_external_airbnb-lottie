@@ -23,6 +23,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RawRes;
 import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.view.ViewCompat;
 
 import com.airbnb.lottie.model.KeyPath;
 import com.airbnb.lottie.parser.moshi.JsonReader;
@@ -100,6 +101,7 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
   private boolean wasAnimatingWhenNotShown = false;
   private boolean wasAnimatingWhenDetached = false;
   private boolean autoPlay = false;
+  private boolean cacheComposition = true;
   private RenderMode renderMode = RenderMode.AUTOMATIC;
   private Set<LottieOnCompositionLoadedListener> lottieOnCompositionLoadedListeners = new HashSet<>();
   /**
@@ -133,6 +135,7 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
   private void init(@Nullable AttributeSet attrs) {
     TypedArray ta = getContext().obtainStyledAttributes(attrs, R.styleable.LottieAnimationView);
     if (!isInEditMode()) {
+      cacheComposition = ta.getBoolean(R.styleable.LottieAnimationView_lottie_cacheComposition, true);
       boolean hasRawRes = ta.hasValue(R.styleable.LottieAnimationView_lottie_rawRes);
       boolean hasFileName = ta.hasValue(R.styleable.LottieAnimationView_lottie_fileName);
       boolean hasUrl = ta.hasValue(R.styleable.LottieAnimationView_lottie_url);
@@ -247,7 +250,7 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
     ss.animationName = animationName;
     ss.animationResId = animationResId;
     ss.progress = lottieDrawable.getProgress();
-    ss.isAnimating = lottieDrawable.isAnimating();
+    ss.isAnimating = lottieDrawable.isAnimating() || (!ViewCompat.isAttachedToWindow(this) && wasAnimatingWhenDetached);
     ss.imageAssetsFolder = lottieDrawable.getImageAssetsFolder();
     ss.repeatMode = lottieDrawable.getRepeatMode();
     ss.repeatCount = lottieDrawable.getRepeatCount();
@@ -348,19 +351,35 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
   }
 
   /**
+   * If set to true, all future compositions that are set will be cached so that they don't need to be parsed
+   * next time they are loaded. This won't apply to compositions that have already been loaded.
+   *
+   * Defaults to true.
+   *
+   * {@link R.attr#lottie_cacheComposition}
+   */
+  public void  setCacheComposition(boolean cacheComposition) {
+    this.cacheComposition = cacheComposition;
+  }
+
+  /**
    * Sets the animation from a file in the raw directory.
    * This will load and deserialize the file asynchronously.
    */
   public void setAnimation(@RawRes final int rawRes) {
     this.animationResId = rawRes;
     animationName = null;
-    setCompositionTask(LottieCompositionFactory.fromRawRes(getContext(), rawRes));
+    LottieTask<LottieComposition> task = cacheComposition ?
+        LottieCompositionFactory.fromRawRes(getContext(), rawRes) : LottieCompositionFactory.fromRawRes(getContext(), rawRes, null);
+    setCompositionTask(task);
   }
 
   public void setAnimation(final String assetName) {
     this.animationName = assetName;
     animationResId = 0;
-    setCompositionTask(LottieCompositionFactory.fromAsset(getContext(), assetName));
+    LottieTask<LottieComposition> task = cacheComposition ?
+        LottieCompositionFactory.fromAsset(getContext(), assetName) : LottieCompositionFactory.fromAsset(getContext(), assetName, null);
+    setCompositionTask(task);
   }
 
   /**
@@ -400,7 +419,9 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
    * can be accessed immediately for subsequent requests. If the file does not parse to a composition, the temporary file will be deleted.
    */
   public void setAnimationFromUrl(String url) {
-    setCompositionTask(LottieCompositionFactory.fromUrl(getContext(), url));
+    LottieTask<LottieComposition> task = cacheComposition ?
+        LottieCompositionFactory.fromUrl(getContext(), url) : LottieCompositionFactory.fromUrl(getContext(), url, null);
+    setCompositionTask(task);
   }
 
   /**
@@ -597,6 +618,18 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
    */
   public void setMinAndMaxFrame(String markerName) {
     lottieDrawable.setMinAndMaxFrame(markerName);
+  }
+
+  /**
+   * Sets the minimum and maximum frame to the start marker start and the maximum frame to the end marker start.
+   * playEndMarkerStartFrame determines whether or not to play the frame that the end marker is on. If the end marker
+   * represents the end of the section that you want, it should be true. If the marker represents the beginning of the
+   * next section, it should be false.
+   *
+   * @throws IllegalArgumentException if either marker is not found.
+   */
+  public void setMinAndMaxFrame(final String startMarkerName, final String endMarkerName, final boolean playEndMarkerStartFrame) {
+    lottieDrawable.setMinAndMaxFrame(startMarkerName, endMarkerName, playEndMarkerStartFrame);
   }
 
   /**
@@ -908,6 +941,21 @@ import static com.airbnb.lottie.RenderMode.HARDWARE;
   private void clearComposition() {
     composition = null;
     lottieDrawable.clearComposition();
+  }
+
+  /**
+   * If you are experiencing a device specific crash that happens during drawing, you can set this to true
+   * for those devices. If set to true, draw will be wrapped with a try/catch which will cause Lottie to
+   * render an empty frame rather than crash your app.
+   *
+   * Ideally, you will never need this and the vast majority of apps and animations won't. However, you may use
+   * this for very specific cases if absolutely necessary.
+   *
+   * There is no XML attr for this because it should be set programmatically and only for specific devices that
+   * are known to be problematic.
+   */
+  public void setSafeMode(boolean safeMode) {
+    lottieDrawable.setSafeMode(safeMode);
   }
 
   /**

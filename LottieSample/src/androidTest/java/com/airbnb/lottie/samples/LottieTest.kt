@@ -748,6 +748,20 @@ class LottieTest {
             }
             drawable.addValueCallback(KeyPath("Text"), LottieProperty.STROKE_WIDTH, value)
         }
+
+        withDrawable("Tests/Text.json", "Text", "Text Tracking") { drawable ->
+            val value = object : LottieValueCallback<Float>() {
+                override fun getValue(frameInfo: LottieFrameInfo<Float>?) = 20f
+            }
+            drawable.addValueCallback(KeyPath("Text"), LottieProperty.TEXT_TRACKING, value)
+        }
+
+        withDrawable("Tests/Text.json", "Text", "Text Size") { drawable ->
+            val value = object : LottieValueCallback<Float>() {
+                override fun getValue(frameInfo: LottieFrameInfo<Float>?) = 60f
+            }
+            drawable.addValueCallback(KeyPath("Text"), LottieProperty.TEXT_SIZE, value)
+        }
     }
 
     private suspend fun <T> testDynamicProperty(name: String, keyPath: KeyPath, property: T, callback: LottieValueCallback<T>, progress: Float = 0f) {
@@ -765,6 +779,26 @@ class LottieTest {
 
         withDrawable("Tests/Marker.json", "Marker", "endFrame") { drawable ->
             drawable.setMinAndMaxFrame("Marker A")
+            drawable.frame = drawable.maxFrame.toInt()
+        }
+
+        withDrawable("Tests/RGBMarker.json", "Marker", "->[Green, Blue)") { drawable ->
+            drawable.setMinAndMaxFrame("Green Section", "Blue Section", false)
+            drawable.frame = drawable.minFrame.toInt()
+        }
+
+        withDrawable("Tests/RGBMarker.json", "Marker", "->[Green, Blue]") { drawable ->
+            drawable.setMinAndMaxFrame("Green Section", "Blue Section", true)
+            drawable.frame = drawable.minFrame.toInt()
+        }
+
+        withDrawable("Tests/RGBMarker.json", "Marker", "[Green, Blue)<-") { drawable ->
+            drawable.setMinAndMaxFrame("Green Section", "Blue Section", false)
+            drawable.frame = drawable.maxFrame.toInt()
+        }
+
+        withDrawable("Tests/RGBMarker.json", "Marker", "[Green, Blue]<-") { drawable ->
+            drawable.setMinAndMaxFrame("Green Section", "Blue Section", true)
             drawable.frame = drawable.maxFrame.toInt()
         }
     }
